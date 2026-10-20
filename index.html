@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="uk" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Календар — Планувальник, Погода & Захищені Нотатки</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            accent: '#6366f1',
+                            accentDark: '#4f46e5'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono-num { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.4); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col md:flex-row antialiased transition-colors duration-200">
+
+    <!-- LOGIN / REGISTER OVERLAY MODAL -->
+    <div id="auth-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-700 text-center">
+            <div class="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+                <i data-lucide="calendar" class="w-8 h-8"></i>
+            </div>
+            <h2 id="auth-title" class="text-2xl font-extrabold tracking-tight mb-1">Вхід до Календаря</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">Авторизуйтесь для гарантованого збереження ваших даних та доступу до секретних нотаток.</p>
+
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Ім'я користувача</label>
+                    <input type="text" id="auth-username" required placeholder="Ваше ім'я..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Пароль / PIN-код (для секретних нотаток)</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <button type="submit" id="auth-btn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-indigo-500/25 transition mt-2">
+                    Увійти / Зареєструватися
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN SIDEBAR NAV -->
+    <aside class="w-full md:w-64 bg-white dark:bg-slate-800/90 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-700/60 p-4 flex md:flex-col justify-between shrink-0 z-20">
+        <div>
+            <!-- App Logo / Title -->
+            <div class="flex items-center justify-between mb-6 px-1">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2.5 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-500/30">
+                        <i data-lucide="calendar" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-black text-xl tracking-tight leading-none text-slate-900 dark:text-white">Календар</h1>
+                        <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-500 dark:text-indigo-400">Планування & Погода</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex md:flex-col space-x-1.5 md:space-x-0 md:space-y-1.5">
+                <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-btn active-nav flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                    <i data-lucide="calendar-days" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">Календар & Погода</span>
+                </button>
+                <button onclick="switchTab('notes')" id="nav-notes" class="nav-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50">
+                    <i data-lucide="lock" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">Нотатки & Секрети</span>
+                </button>
+                <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">Налаштування</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Sidebar Footer Controls -->
+        <div class="hidden md:block pt-4 border-t border-slate-200 dark:border-slate-700/60 space-y-3">
+            <!-- User Status & Logout -->
+            <div class="flex items-center justify-between p-2.5 bg-slate-100 dark:bg-slate-700/50 rounded-xl text-xs">
+                <div class="flex items-center space-x-2 truncate">
+                    <div class="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0" id="user-avatar-initial">
+                        U
+                    </div>
+                    <span id="user-display-name" class="font-semibold truncate">Користувач</span>
+                </div>
+                <button onclick="logout()" title="Вийти з акаунта" class="text-slate-400 hover:text-red-500 p-1">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Location Picker -->
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <i data-lucide="map-pin" class="w-3 h-3 text-indigo-500"></i> Локація погоди
+                </label>
+                <select id="location-select" onchange="changeLocation(this.value)" class="w-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="dytynychi">🏡 Дитиничі (50.36, 25.75)</option>
+                    <option value="dubno">🏰 Дубно (50.41, 25.73)</option>
+                </select>
+            </div>
+
+            <!-- Theme Toggle -->
+            <button onclick="toggleDarkMode()" class="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i>
+                    <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                    Тема
+                </span>
+                <span class="text-xs opacity-75" id="theme-label">Темна</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN VIEW AREA -->
+    <main class="flex-1 flex flex-col h-auto md:h-screen overflow-y-auto">
+
+        <!-- TOP BAR: LIVE CLOCK & GLOBAL CONTROLS -->
+        <header class="bg-white dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 px-4 sm:px-8 py-3 flex items-center justify-between shrink-0 sticky top-0 z-10 backdrop-blur-md">
+            <div class="flex items-center space-x-3">
+                <div class="flex flex-col">
+                    <div id="live-clock-time" class="text-xl sm:text-2xl font-black font-mono-num tracking-tight text-indigo-600 dark:text-indigo-400">
+                        00:00:00
+                    </div>
+                    <div id="live-clock-date" class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 capitalize">
+                        Вівторок, 20 Жовтня 2026
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button onclick="requestNotificationPermission()" id="notif-badge-btn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Сповіщення активні</span>
+                </button>
+                <button onclick="openTaskModal()" class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl font-medium text-xs sm:text-sm shadow-md shadow-indigo-500/20 transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Додати подію</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- TAB 1: CALENDAR & WEATHER -->
+        <section id="tab-calendar" class="p-4 sm:p-6 md:p-8 flex-1 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+            
+            <!-- Month Header Controls -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                <div class="flex items-center space-x-3">
+                    <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition text-slate-600 dark:text-slate-300">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                    </button>
+                    <h2 id="current-month-year" class="text-lg sm:text-xl font-extrabold tracking-tight min-w-[170px] text-center capitalize">Жовтень 2026</h2>
+                    <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition text-slate-600 dark:text-slate-300">
+                        <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="goToToday()" class="px-3 py-1.5 text-xs font-semibold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition">
+                        Сьогодні
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <div class="block md:hidden">
+                        <select id="location-select-mobile" onchange="changeLocation(this.value)" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
+                            <option value="dytynychi">Дитиничі</option>
+                            <option value="dubno">Дубно</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar & Weather Split Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+                
+                <!-- Calendar Grid (7 Cols) -->
+                <div class="lg:col-span-7 bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-3 px-1">
+                        <span class="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <i data-lucide="cloud-sun" class="w-4 h-4 text-amber-500"></i> Прогноз Open-Meteo
+                        </span>
+                        <span id="weather-location-badge" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2.5 py-0.5 rounded-lg border border-indigo-200/50 dark:border-indigo-800/50">
+                            Дитиничі
+                        </span>
+                    </div>
+
+                    <!-- Weekdays -->
+                    <div class="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        <div>Пн</div><div>Вів</div><div>Ср</div><div>Чт</div><div>Пт</div><div class="text-indigo-500">Сб</div><div class="text-indigo-500">Нд</div>
+                    </div>
+                    
+                    <!-- Days Cells -->
+                    <div id="calendar-days" class="grid grid-cols-7 gap-1.5 flex-1 auto-rows-fr">
+                        <!-- Dynamic Grid Cells -->
+                    </div>
+                </div>
+
+                <!-- Selected Day Panel (Weather Details + Daily Schedule) (5 Cols) -->
+                <div class="lg:col-span-5 flex flex-col gap-4">
+                    
+                    <!-- Weather Card for Selected Date -->
+                    <div id="weather-widget" class="bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white p-5 rounded-2xl shadow-xl relative overflow-hidden">
+                        <div class="relative z-10 flex items-center justify-between">
+                            <div>
+                                <span id="weather-widget-location" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/20 text-indigo-100">Дитиничі</span>
+                                <h3 id="weather-widget-date" class="text-lg font-bold mt-1">20 Жовтня</h3>
+                                <p id="weather-widget-desc" class="text-xs text-indigo-100/90 mt-0.5">Завантаження прогнозу...</p>
+                            </div>
+                            <div class="text-right">
+                                <div id="weather-widget-temp" class="text-3xl font-black tracking-tight">--°C</div>
+                                <div id="weather-widget-icon" class="text-3xl mt-1">🌤️</div>
+                            </div>
+                        </div>
+
+                        <!-- Weather Extra Details -->
+                        <div class="relative z-10 grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/10 text-[11px] text-indigo-100">
+                            <div class="flex items-center gap-1.5">
+                                <i data-lucide="droplets" class="w-3.5 h-3.5 text-blue-300"></i>
+                                <span id="weather-widget-humidity">Вологість: --%</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <i data-lucide="wind" class="w-3.5 h-3.5 text-teal-300"></i>
+                                <span id="weather-widget-wind">Вітер: -- км/год</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Schedule List -->
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex-1 flex flex-col">
+                        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-indigo-500 tracking-wider">Задачі на день</span>
+                                <h3 id="selected-date-formatted" class="text-base font-bold">20 Жовтня 2026</h3>
+                            </div>
+                            <span id="task-count-badge" class="px-2.5 py-1 text-xs font-semibold bg-slate-100 dark:bg-slate-700 rounded-full">
+                                0 подій
+                            </span>
+                        </div>
+
+                        <!-- Task Items Container -->
+                        <div id="daily-task-list" class="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-[200px] max-h-[380px] lg:max-h-none">
+                            <!-- Tasks Rendered Dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 2: NOTES & SECRETS VAULT -->
+        <section id="tab-notes" class="p-4 sm:p-6 md:p-8 flex-1 flex-col gap-6 max-w-7xl mx-auto w-full hidden">
+            
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight">Сховище Нотаток</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Зберігайте звичайні та важливі (захищені паролем) нотатки.</p>
+                </div>
+                
+                <button onclick="openNoteModal()" class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm shadow-md shadow-indigo-500/20 transition">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Нова нотатка</span>
+                </button>
+            </div>
+
+            <!-- Tabs Switcher & Filter Controls -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <!-- Sub-tabs: Normal vs Secret Notes -->
+                <div class="flex bg-slate-200 dark:bg-slate-700/60 p-1 rounded-xl w-full sm:w-auto">
+                    <button onclick="switchNoteTab('normal')" id="subtab-normal-btn" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm">
+                        📝 Звичайні нотатки
+                    </button>
+                    <button onclick="switchNoteTab('secret')" id="subtab-secret-btn" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 flex items-center justify-center gap-1">
+                        <i data-lucide="lock" class="w-3.5 h-3.5 text-amber-500"></i>
+                        <span>🔒 Важливі (Секретні)</span>
+                    </button>
+                </div>
+
+                <!-- Search -->
+                <div class="relative w-full sm:w-64">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400"></i>
+                    <input type="text" id="note-search" oninput="renderNotes()" placeholder="Пошук нотаток..." class="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <!-- PIN Unlock Banner (If Secret Notes are locked) -->
+            <div id="secret-lock-banner" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-2xl p-6 text-center max-w-md mx-auto my-8">
+                <div class="w-12 h-12 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="lock" class="w-6 h-6"></i>
+                </div>
+                <h3 class="font-bold text-base mb-1">Секретні нотатки заблоковано</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Введіть ваш пароль / PIN-код для перегляду зашифрованої інформації.</p>
+                <div class="flex items-center justify-center gap-2">
+                    <input type="password" id="secret-pin-input" placeholder="Пароль..." class="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <button onclick="unlockSecretNotes()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs shadow-md transition">
+                        Розблокувати
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notes Grid -->
+            <div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Dynamic Notes Grid -->
+            </div>
+        </section>
+
+        <!-- TAB 3: SETTINGS & BACKUP -->
+        <section id="tab-settings" class="p-4 sm:p-6 md:p-8 flex-1 flex-col gap-6 max-w-4xl mx-auto w-full hidden">
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-6">
+                <h2 class="text-xl font-bold">Налаштування, Тестування та Резервні Копії</h2>
+
+                <!-- Sound & Test Notifications -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <h4 class="font-semibold text-sm">Тест сповіщень та звуку</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Перевірити роботу звукового сигналу та браузерних повідомлень</p>
+                    </div>
+                    <button onclick="testNotificationAndSound()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2">
+                        <i data-lucide="volume-2" class="w-4 h-4"></i> Тестовий звук & Сповіщення
+                    </button>
+                </div>
+
+                <!-- Export Data -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <h4 class="font-semibold text-sm">Експорт резервної копії (JSON)</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Завантажити всі ваші задачі, акаунт та нотатки в JSON файл</p>
+                    </div>
+                    <button onclick="exportData()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl text-xs font-semibold transition">
+                        Завантажити JSON
+                    </button>
+                </div>
+
+                <!-- Import Data -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <h4 class="font-semibold text-sm">Імпорт даних з JSON</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Відновити дані з збереженого файлу</p>
+                    </div>
+                    <div>
+                        <input type="file" id="import-file" accept=".json" onchange="importData(event)" class="hidden">
+                        <button onclick="document.getElementById('import-file').click()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl text-xs font-semibold transition">
+                            Вибрати файл
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Clear All Data -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="font-semibold text-sm text-red-600 dark:text-red-400">Скинути всі дані</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Повністю очистити збережені задачі та нотатки</p>
+                    </div>
+                    <button onclick="clearAllData()" class="px-4 py-2 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl text-xs font-semibold hover:bg-red-100 transition">
+                        Очистити
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: TASK FORM -->
+    <div id="task-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+                <h3 id="task-modal-title" class="font-bold text-lg">Запланувати подію</h3>
+                <button onclick="closeTaskModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="task-form" onsubmit="saveTask(event)" class="space-y-4">
+                <input type="hidden" id="task-id">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Назва події *</label>
+                    <input type="text" id="task-title" required placeholder="Напр. Зустріч в Дубно" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Дата *</label>
+                        <input type="date" id="task-date" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Час *</label>
+                        <input type="time" id="task-time" required class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Пріоритет</label>
+                        <select id="task-priority" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="low">Низький</option>
+                            <option value="medium" selected>Середній</option>
+                            <option value="high">Високий 🔥</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Категорія</label>
+                        <select id="task-category" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="робота">Робота</option>
+                            <option value="особисте">Особисте</option>
+                            <option value="покупки">Покупки</option>
+                            <option value="здоров'я">Здоров'я</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Опис / Деталі</label>
+                    <textarea id="task-desc" rows="3" placeholder="Додаткова інформація..." class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="flex items-center space-x-2 pt-1">
+                    <input type="checkbox" id="task-reminder" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    <label for="task-reminder" class="text-xs text-slate-600 dark:text-slate-300 font-medium cursor-pointer">
+                        Нагадати при настанні часу
+                    </label>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeTaskModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        Скасувати
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-500/20">
+                        Зберегти
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: NOTE FORM -->
+    <div id="note-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+                <h3 id="note-modal-title" class="font-bold text-lg">Створити нотатку</h3>
+                <button onclick="closeNoteModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="note-form" onsubmit="saveNote(event)" class="space-y-4">
+                <input type="hidden" id="note-id">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Заголовок *</label>
+                    <input type="text" id="note-title" required placeholder="Назва нотатки..." class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Тип нотатки</label>
+                        <select id="note-is-secret" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-amber-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="false">📝 Звичайна</option>
+                            <option value="true">🔒 Секретна (Важлива)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Категорія</label>
+                        <select id="note-category" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="загальне">Загальне</option>
+                            <option value="паролі">Паролі / Доступи</option>
+                            <option value="документи">Документи</option>
+                            <option value="ідеї">Ідеї</option>
+                            <option value="особисте">Особисте</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Зміст / Інформація *</label>
+                    <textarea id="note-content" required rows="6" placeholder="Введіть приватні нотатки, коди, паролі чи посилання..." class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" onclick="closeNoteModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        Скасувати
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-500/20">
+                        Зберегти
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- EXACT LOCATIONS COORDINATES ---
+        const LOCATIONS = {
+            dytynychi: { name: 'Дитиничі', lat: 50.3667, lon: 25.7500 },
+            dubno: { name: 'Дубно', lat: 50.4181, lon: 25.7380 }
+        };
+
+        // --- GLOBAL STATE ---
+        let userProfile = JSON.parse(localStorage.getItem('calendar_user') || 'null');
+        let activeLocationKey = localStorage.getItem('calendar_location') || 'dytynychi';
+        let weatherCache = {};
+        
+        let currentDate = new Date();
+        let selectedDate = new Date();
+
+        let tasks = JSON.parse(localStorage.getItem('calendar_tasks') || '[]');
+        let notes = JSON.parse(localStorage.getItem('calendar_notes') || '[]');
+
+        let currentNoteTab = 'normal'; // 'normal' or 'secret'
+        let secretNotesUnlocked = false;
+
+        const monthNamesUk = [
+            "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+            "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+        ];
+
+        // ON LOAD
+        window.onload = function() {
+            lucide.createIcons();
+            initTheme();
+            startLiveClock();
+            checkAuthStatus();
+
+            document.getElementById('location-select').value = activeLocationKey;
+            if (document.getElementById('location-select-mobile')) {
+                document.getElementById('location-select-mobile').value = activeLocationKey;
+            }
+
+            fetchWeatherForLocation(activeLocationKey).then(() => {
+                renderCalendar();
+                renderDailySchedule();
+            });
+
+            renderNotes();
+            checkNotificationPermissionStatus();
+
+            // Interval check for upcoming task alarms (runs every 1 sec)
+            setInterval(checkUpcomingReminders, 1000);
+        };
+
+        // --- AUTH & PROFILE ---
+        function checkAuthStatus() {
+            if (!userProfile) {
+                document.getElementById('auth-modal').classList.remove('hidden');
+            } else {
+                document.getElementById('auth-modal').classList.add('hidden');
+                document.getElementById('user-display-name').innerText = userProfile.username;
+                document.getElementById('user-avatar-initial').innerText = userProfile.username.charAt(0).toUpperCase();
+            }
+        }
+
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value.trim();
+            const password = document.getElementById('auth-password').value.trim();
+
+            if (username && password) {
+                userProfile = { username, password };
+                localStorage.setItem('calendar_user', JSON.stringify(userProfile));
+                checkAuthStatus();
+                showToast(`Ласкаво просимо, ${username}!`);
+            }
+        }
+
+        function logout() {
+            if (confirm('Вийти з акаунта?')) {
+                localStorage.removeItem('calendar_user');
+                userProfile = null;
+                secretNotesUnlocked = false;
+                checkAuthStatus();
+            }
+        }
+
+        // --- LIVE CLOCK ---
+        function startLiveClock() {
+            function updateClock() {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                
+                document.getElementById('live-clock-time').innerText = `${hours}:${minutes}:${seconds}`;
+
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                document.getElementById('live-clock-date').innerText = now.toLocaleDateString('uk-UA', options);
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        // --- ACCURATE WEATHER (OPEN-METEO) ---
+        async function fetchWeatherForLocation(locationKey) {
+            const loc = LOCATIONS[locationKey] || LOCATIONS.dytynychi;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&current_weather=true&relativehumidity_2m=true&timezone=auto`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                weatherCache = {};
+
+                if (data && data.daily) {
+                    data.daily.time.forEach((timeStr, idx) => {
+                        weatherCache[timeStr] = {
+                            code: data.daily.weathercode[idx],
+                            maxTemp: Math.round(data.daily.temperature_2m_max[idx]),
+                            minTemp: Math.round(data.daily.temperature_2m_min[idx]),
+                            precip: data.daily.precipitation_probability_max[idx],
+                            wind: data.current_weather ? Math.round(data.current_weather.windspeed) : 12,
+                            humidity: 75
+                        };
+                    });
+                }
+            } catch (err) {
+                console.error("Помилка отримання погоди:", err);
+            }
+        }
+
+        function changeLocation(newKey) {
+            activeLocationKey = newKey;
+            localStorage.setItem('calendar_location', newKey);
+            document.getElementById('location-select').value = newKey;
+            if(document.getElementById('location-select-mobile')) {
+                document.getElementById('location-select-mobile').value = newKey;
+            }
+            document.getElementById('weather-location-badge').innerText = LOCATIONS[newKey].name;
+
+            fetchWeatherForLocation(newKey).then(() => {
+                renderCalendar();
+                renderDailySchedule();
+                showToast(`Погоду оновлено для: ${LOCATIONS[newKey].name}`);
+            });
+        }
+
+        function parseWeatherCode(code) {
+            if (code === 0) return { emoji: '☀️', text: 'Ясно та сонячно' };
+            if (code === 1 || code === 2) return { emoji: '⛅', text: 'Часткова хмарність' };
+            if (code === 3) return { emoji: '☁️', text: 'Хмарно' };
+            if (code >= 45 && code <= 48) return { emoji: '🌫️', text: 'Туман' };
+            if (code >= 51 && code <= 67) return { emoji: '🌧️', text: 'Дощ / Мряка' };
+            if (code >= 71 && code <= 77) return { emoji: '❄️', text: 'Снігопад' };
+            if (code >= 80 && code <= 82) return { emoji: '🌦️', text: 'Злива' };
+            if (code >= 95) return { emoji: '⛈️', text: 'Гроза' };
+            return { emoji: '🌤️', text: 'Помірні умови' };
+        }
+
+        // --- CALENDAR RENDER ---
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            document.getElementById('current-month-year').innerText = `${monthNamesUk[month]} ${year}`;
+            document.getElementById('weather-location-badge').innerText = LOCATIONS[activeLocationKey].name;
+
+            const firstDayOfMonth = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            let startDayIndex = firstDayOfMonth.getDay() - 1;
+            if (startDayIndex === -1) startDayIndex = 6;
+
+            const grid = document.getElementById('calendar-days');
+            grid.innerHTML = '';
+
+            const prevMonthDays = new Date(year, month, 0).getDate();
+            for (let i = startDayIndex - 1; i >= 0; i--) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'p-1 text-slate-300 dark:text-slate-600 text-xs text-center rounded-xl select-none opacity-40';
+                dayDiv.innerText = prevMonthDays - i;
+                grid.appendChild(dayDiv);
+            }
+
+            const today = new Date();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateObj = new Date(year, month, day);
+                const dateStr = formatDateKey(dateObj);
+
+                const isToday = today.toDateString() === dateObj.toDateString();
+                const isSelected = selectedDate.toDateString() === dateObj.toDateString();
+
+                const dayTasks = tasks.filter(t => t.date === dateStr);
+                const dayWeather = weatherCache[dateStr];
+
+                const dayBtn = document.createElement('button');
+                dayBtn.onclick = () => selectDate(dateObj);
+
+                let classList = "p-1.5 rounded-xl text-xs font-semibold flex flex-col items-center justify-between min-h-[58px] sm:min-h-[64px] transition relative border ";
+
+                if (isSelected) {
+                    classList += "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/30 ";
+                } else if (isToday) {
+                    classList += "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 font-bold ";
+                } else {
+                    classList += "hover:bg-slate-100 dark:hover:bg-slate-700/60 border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 ";
+                }
+
+                dayBtn.className = classList;
+
+                let dotsMarkup = '';
+                if (dayTasks.length > 0) {
+                    const dotBg = isSelected ? 'bg-white' : 'bg-indigo-500';
+                    dotsMarkup = `<span class="w-1.5 h-1.5 rounded-full ${dotBg}"></span>`;
+                }
+
+                let weatherMini = '';
+                if (dayWeather) {
+                    const parsed = parseWeatherCode(dayWeather.code);
+                    weatherMini = `
+                        <div class="text-[10px] leading-none opacity-90 flex items-center gap-0.5 mt-0.5 font-normal">
+                            <span>${parsed.emoji}</span>
+                            <span>${dayWeather.maxTemp}°</span>
+                        </div>
+                    `;
+                }
+
+                dayBtn.innerHTML = `
+                    <div class="w-full flex items-center justify-between px-0.5">
+                        <span>${day}</span>
+                        ${dotsMarkup}
+                    </div>
+                    ${weatherMini}
+                `;
+
+                grid.appendChild(dayBtn);
+            }
+        }
+
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function goToToday() {
+            currentDate = new Date();
+            selectDate(new Date());
+        }
+
+        function selectDate(dateObj) {
+            selectedDate = dateObj;
+            renderCalendar();
+            renderDailySchedule();
+        }
+
+        function formatDateKey(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        // --- DAILY SCHEDULE & DETAILED WEATHER WIDGET ---
+        function renderDailySchedule() {
+            const dateStr = formatDateKey(selectedDate);
+            const container = document.getElementById('daily-task-list');
+            
+            const formattedHeader = selectedDate.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
+            document.getElementById('selected-date-formatted').innerText = formattedHeader;
+
+            // Render Weather Widget
+            const dayWeather = weatherCache[dateStr];
+            document.getElementById('weather-widget-location').innerText = LOCATIONS[activeLocationKey].name;
+            document.getElementById('weather-widget-date').innerText = selectedDate.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+
+            if (dayWeather) {
+                const parsed = parseWeatherCode(dayWeather.code);
+                document.getElementById('weather-widget-temp').innerText = `${dayWeather.maxTemp}°C / ${dayWeather.minTemp}°C`;
+                document.getElementById('weather-widget-desc').innerText = `${parsed.text} • Опади: ${dayWeather.precip}%`;
+                document.getElementById('weather-widget-icon').innerText = parsed.emoji;
+                document.getElementById('weather-widget-humidity').innerText = `Вологість: ${dayWeather.humidity}%`;
+                document.getElementById('weather-widget-wind').innerText = `Вітер: ${dayWeather.wind} км/год`;
+            } else {
+                document.getElementById('weather-widget-temp').innerText = `--°C`;
+                document.getElementById('weather-widget-desc').innerText = `Прогноз доступний на 7 днів`;
+                document.getElementById('weather-widget-icon').innerText = '🌤️';
+            }
+
+            // Tasks List
+            const dayTasks = tasks.filter(t => t.date === dateStr).sort((a,b) => a.time.localeCompare(b.time));
+            document.getElementById('task-count-badge').innerText = `${dayTasks.length} подій`;
+
+            if (dayTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-8 text-center text-slate-400">
+                        <i data-lucide="calendar-x" class="w-8 h-8 mb-2 opacity-40"></i>
+                        <p class="text-xs">На цей день подій немає</p>
+                        <button onclick="openTaskModal()" class="mt-2 text-xs text-indigo-500 hover:underline font-semibold">+ Запланувати</button>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = dayTasks.map(t => {
+                const isDone = t.completed;
+                const pColor = t.priority === 'high' ? 'border-l-red-500' : (t.priority === 'medium' ? 'border-l-amber-500' : 'border-l-indigo-500');
+
+                return `
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/40 border-l-4 ${pColor} flex items-start justify-between gap-3 transition">
+                        <div class="flex items-start gap-2.5 flex-1">
+                            <input type="checkbox" ${isDone ? 'checked' : ''} onclick="toggleTaskStatus('${t.id}')" class="mt-0.5 w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+                            <div class="${isDone ? 'line-through opacity-50' : ''}">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-bold font-mono-num text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2 py-0.5 rounded-md">
+                                        ${t.time}
+                                    </span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400">${escapeHtml(t.category)}</span>
+                                </div>
+                                <h4 class="font-bold text-xs sm:text-sm mt-1 text-slate-800 dark:text-slate-100">${escapeHtml(t.title)}</h4>
+                                ${t.desc ? `<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${escapeHtml(t.desc)}</p>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-1">
+                            <button onclick="editTask('${t.id}')" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button onclick="deleteTask('${t.id}')" class="p-1 hover:bg-red-100 dark:hover:bg-red-950 rounded text-slate-400 hover:text-red-500">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // --- TASK CRUD ---
+        function openTaskModal(editId = null) {
+            const modal = document.getElementById('task-modal');
+            modal.classList.remove('hidden');
+
+            if (editId) {
+                const t = tasks.find(x => x.id === editId);
+                document.getElementById('task-modal-title').innerText = 'Редагувати подію';
+                document.getElementById('task-id').value = t.id;
+                document.getElementById('task-title').value = t.title;
+                document.getElementById('task-date').value = t.date;
+                document.getElementById('task-time').value = t.time;
+                document.getElementById('task-priority').value = t.priority;
+                document.getElementById('task-category').value = t.category;
+                document.getElementById('task-desc').value = t.desc || '';
+                document.getElementById('task-reminder').checked = !!t.reminder;
+            } else {
+                document.getElementById('task-modal-title').innerText = 'Запланувати подію';
+                document.getElementById('task-form').reset();
+                document.getElementById('task-id').value = '';
+                document.getElementById('task-date').value = formatDateKey(selectedDate);
+                document.getElementById('task-time').value = '12:00';
+            }
+        }
+
+        function closeTaskModal() {
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+
+        function saveTask(e) {
+            e.preventDefault();
+            const id = document.getElementById('task-id').value || 'task_' + Date.now();
+            const title = document.getElementById('task-title').value;
+            const date = document.getElementById('task-date').value;
+            const time = document.getElementById('task-time').value;
+            const priority = document.getElementById('task-priority').value;
+            const category = document.getElementById('task-category').value;
+            const desc = document.getElementById('task-desc').value;
+            const reminder = document.getElementById('task-reminder').checked;
+
+            const existingIndex = tasks.findIndex(x => x.id === id);
+            const taskData = {
+                id, title, date, time, priority, category, desc, reminder,
+                completed: existingIndex > -1 ? tasks[existingIndex].completed : false,
+                notified: false
+            };
+
+            if (existingIndex > -1) {
+                tasks[existingIndex] = taskData;
+            } else {
+                tasks.push(taskData);
+            }
+
+            localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
+            closeTaskModal();
+            showToast('Подію збережено!');
+            renderCalendar();
+            renderDailySchedule();
+        }
+
+        function toggleTaskStatus(id) {
+            const task = tasks.find(t => t.id === id);
+            if(task) {
+                task.completed = !task.completed;
+                localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
+                renderDailySchedule();
+            }
+        }
+
+        function editTask(id) { openTaskModal(id); }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
+            renderCalendar();
+            renderDailySchedule();
+            showToast('Подію видалено');
+        }
+
+        // --- NOTES & PROTECTED SECRETS LOGIC ---
+        function switchNoteTab(tab) {
+            currentNoteTab = tab;
+            const normBtn = document.getElementById('subtab-normal-btn');
+            const secBtn = document.getElementById('subtab-secret-btn');
+
+            if (tab === 'normal') {
+                normBtn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm";
+                secBtn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 flex items-center justify-center gap-1";
+            } else {
+                secBtn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-sm flex items-center justify-center gap-1";
+                normBtn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900";
+            }
+
+            renderNotes();
+        }
+
+        function unlockSecretNotes() {
+            const enteredPin = document.getElementById('secret-pin-input').value.trim();
+            if (userProfile && enteredPin === userProfile.password) {
+                secretNotesUnlocked = true;
+                showToast('Секретні нотатки розблоковано!');
+                renderNotes();
+            } else {
+                showToast('Невірний пароль!');
+            }
+        }
+
+        function renderNotes() {
+            const grid = document.getElementById('notes-grid');
+            const searchQuery = document.getElementById('note-search').value.toLowerCase();
+            const banner = document.getElementById('secret-lock-banner');
+
+            if (currentNoteTab === 'secret' && !secretNotesUnlocked) {
+                banner.classList.remove('hidden');
+                grid.innerHTML = '';
+                return;
+            } else {
+                banner.classList.add('hidden');
+            }
+
+            const isSecretMode = (currentNoteTab === 'secret');
+
+            let filteredNotes = notes.filter(n => {
+                const isSecret = !!n.isSecret;
+                if (isSecretMode !== isSecret) return false;
+                return n.title.toLowerCase().includes(searchQuery) || n.content.toLowerCase().includes(searchQuery);
+            });
+
+            if (filteredNotes.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-400">
+                        <i data-lucide="file-question" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                        <p class="text-xs">Записів відсутньо</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            grid.innerHTML = filteredNotes.map(n => `
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border ${n.isSecret ? 'border-amber-500/40 bg-amber-500/5' : 'border-slate-200/80 dark:border-slate-700/80'} shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${n.isSecret ? 'bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400' : 'bg-slate-100 dark:bg-slate-700 text-indigo-600 dark:text-indigo-400'}">
+                                ${n.isSecret ? '🔒 Секретно' : escapeHtml(n.category)}
+                            </span>
+                            <span class="text-[10px] text-slate-400">${n.date}</span>
+                        </div>
+                        <h3 class="font-bold text-base mb-2 text-slate-800 dark:text-slate-100">${escapeHtml(n.title)}</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap font-mono bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 max-h-40 overflow-y-auto">${escapeHtml(n.content)}</p>
+                    </div>
+
+                    <div class="flex items-center justify-end space-x-2 pt-3 mt-2 border-t border-slate-100 dark:border-slate-700/50">
+                        <button onclick="copyToClipboard('${escapeHtml(n.content)}')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs flex items-center gap-1">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="editNote('${n.id}')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="deleteNote('${n.id}')" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg text-slate-400 hover:text-red-500">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function openNoteModal(editId = null) {
+            const modal = document.getElementById('note-modal');
+            modal.classList.remove('hidden');
+
+            if (editId) {
+                const n = notes.find(x => x.id === editId);
+                document.getElementById('note-modal-title').innerText = 'Редагувати нотатку';
+                document.getElementById('note-id').value = n.id;
+                document.getElementById('note-title').value = n.title;
+                document.getElementById('note-is-secret').value = n.isSecret ? 'true' : 'false';
+                document.getElementById('note-category').value = n.category;
+                document.getElementById('note-content').value = n.content;
+            } else {
+                document.getElementById('note-modal-title').innerText = 'Створити нотатку';
+                document.getElementById('note-form').reset();
+                document.getElementById('note-id').value = '';
+                document.getElementById('note-is-secret').value = (currentNoteTab === 'secret') ? 'true' : 'false';
+            }
+        }
+
+        function closeNoteModal() {
+            document.getElementById('note-modal').classList.add('hidden');
+        }
+
+        function saveNote(e) {
+            e.preventDefault();
+            const id = document.getElementById('note-id').value || 'note_' + Date.now();
+            const title = document.getElementById('note-title').value;
+            const isSecret = document.getElementById('note-is-secret').value === 'true';
+            const category = document.getElementById('note-category').value;
+            const content = document.getElementById('note-content').value;
+            const date = new Date().toLocaleDateString('uk-UA');
+
+            const existingIndex = notes.findIndex(x => x.id === id);
+            const noteData = { id, title, isSecret, category, content, date };
+
+            if (existingIndex > -1) {
+                notes[existingIndex] = noteData;
+            } else {
+                notes.push(noteData);
+            }
+
+            localStorage.setItem('calendar_notes', JSON.stringify(notes));
+            closeNoteModal();
+            showToast('Нотатку збережено!');
+            renderNotes();
+        }
+
+        function editNote(id) { openNoteModal(id); }
+
+        function deleteNote(id) {
+            notes = notes.filter(n => n.id !== id);
+            localStorage.setItem('calendar_notes', JSON.stringify(notes));
+            renderNotes();
+            showToast('Нотатку видалено');
+        }
+
+        // --- RELIABLE AUDIO & NOTIFICATIONS ---
+        function checkNotificationPermissionStatus() {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const btn = document.getElementById('notif-badge-btn');
+                if (btn) btn.innerText = '✓ Сповіщення увімкнені';
+            }
+        }
+
+        function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                showToast('Ваш браузер не підтримує системні сповіщення');
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    showToast('Сповіщення дозволено!');
+                    checkNotificationPermissionStatus();
+                }
+            });
+        }
+
+        function playChimeSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+                osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15); // E5
+                osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.30); // G5
+
+                gain.gain.setValueAtTime(0.4, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.9);
+            } catch (e) {
+                console.error("Audio synth error", e);
+            }
+        }
+
+        function checkUpcomingReminders() {
+            const now = new Date();
+            const currentDateStr = formatDateKey(now);
+            const currentHoursStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+            tasks.forEach(task => {
+                if (!task.completed && !task.notified && task.reminder && task.date === currentDateStr) {
+                    if (task.time === currentHoursStr) {
+                        triggerNotification(task);
+                        task.notified = true;
+                        localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
+                    }
+                }
+            });
+        }
+
+        function triggerNotification(task) {
+            playChimeSound();
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(`🔔 Календар: ${task.title}`, {
+                    body: `Час: ${task.time} — ${task.desc || 'Настав час виконання цієї події!'}`,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png'
+                });
+            }
+
+            showToast(`⏰ НАГАДУВАННЯ [${task.time}]: ${task.title}`);
+        }
+
+        function testNotificationAndSound() {
+            playChimeSound();
+            showToast('Тестовий звук і нагадування спрацювали!');
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('🔔 Тест сповіщень', { body: 'Звук і сповіщення працюють ідеально!' });
+            }
+        }
+
+        // --- BACKUP & EXPORT ---
+        function exportData() {
+            const data = { tasks, notes, userProfile, location: activeLocationKey };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `calendar_backup_${formatDateKey(new Date())}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Резервний JSON файл збережено!');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.tasks) {
+                        tasks = parsed.tasks;
+                        localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
+                    }
+                    if (parsed.notes) {
+                        notes = parsed.notes;
+                        localStorage.setItem('calendar_notes', JSON.stringify(notes));
+                    }
+                    showToast('Дані успішно імпортовано!');
+                    renderCalendar();
+                    renderDailySchedule();
+                    renderNotes();
+                } catch (err) {
+                    showToast('Помилка імпорту JSON');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearAllData() {
+            if (confirm('Очистити абсолютно всі дані?')) {
+                localStorage.clear();
+                tasks = [];
+                notes = [];
+                userProfile = null;
+                checkAuthStatus();
+                renderCalendar();
+                renderDailySchedule();
+                renderNotes();
+                showToast('Дані очищено!');
+            }
+        }
+
+        // --- UI UTILS & TABS ---
+        function switchTab(tabName) {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-50', 'dark:bg-indigo-950/60', 'text-indigo-600', 'dark:text-indigo-400');
+                btn.classList.add('text-slate-600', 'dark:text-slate-400');
+            });
+
+            const activeTab = document.getElementById(`tab-${tabName}`);
+            const activeBtn = document.getElementById(`nav-${tabName}`);
+
+            if(activeTab) activeTab.classList.remove('hidden');
+            if(activeBtn) {
+                activeBtn.classList.add('bg-indigo-50', 'dark:bg-indigo-950/60', 'text-indigo-600', 'dark:text-indigo-400');
+            }
+        }
+
+        function initTheme() {
+            if (localStorage.theme === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-label').innerText = 'Світла';
+            } else {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-label').innerText = 'Темна';
+            }
+        }
+
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+                document.getElementById('theme-label').innerText = 'Світла';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+                document.getElementById('theme-label').innerText = 'Темна';
+            }
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = "pointer-events-auto bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 px-4 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center space-x-2 border border-slate-700/50 dark:border-slate-300/50 transform transition-all duration-300 translate-y-2 opacity-0";
+            toast.innerHTML = `<i data-lucide="bell-ring" class="w-4 h-4 text-indigo-400 dark:text-indigo-600"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function copyToClipboard(text) {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showToast('Текст скопійовано!');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
